@@ -9,6 +9,19 @@ const port = process.env.PORT || 3000;
 
 const upload = multer({ dest: 'uploads/' });
 
+// Ensure necessary folders exist
+const ensureDir = dir => {
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir);
+};
+ensureDir('uploads');
+ensureDir('compressed');
+
+// Allow CORS for Netlify frontend
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  next();
+});
+
 app.use(express.static('public'));
 
 app.post('/compress', upload.single('file'), (req, res) => {
@@ -17,9 +30,13 @@ app.post('/compress', upload.single('file'), (req, res) => {
 
   const gsCommand = `gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/ebook -dNOPAUSE -dQUIET -dBATCH -sOutputFile=${outputPath} ${inputPath}`;
 
-  exec(gsCommand, (error) => {
+  console.log('Running command:', gsCommand);
+
+  exec(gsCommand, (error, stdout, stderr) => {
     if (error) {
-      console.error('Compression error:', error);
+      console.error('Compression error:', error.message);
+      console.error('STDERR:', stderr);
+      console.error('STDOUT:', stdout);
       return res.status(500).send('Compression failed');
     }
 
