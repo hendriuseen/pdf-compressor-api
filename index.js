@@ -1,3 +1,4 @@
+
 const express = require('express');
 const multer = require('multer');
 const fs = require('fs');
@@ -25,20 +26,29 @@ app.use((req, res, next) => {
 app.use(express.static('public'));
 
 app.post('/compress', upload.single('file'), (req, res) => {
+  console.log("📥 File received:", req.file?.originalname || "none");
+
+  if (!req.file) {
+    console.error("❌ No file uploaded");
+    return res.status(400).send("No file uploaded");
+  }
+
   const inputPath = req.file.path;
   const outputPath = `compressed/${req.file.filename}.pdf`;
 
   const gsCommand = `gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/ebook -dNOPAUSE -dQUIET -dBATCH -sOutputFile=${outputPath} ${inputPath}`;
 
-  console.log('Running command:', gsCommand);
+  console.log('▶️ Running command:', gsCommand);
 
   exec(gsCommand, (error, stdout, stderr) => {
     if (error) {
-      console.error('Compression error:', error.message);
+      console.error('❌ Compression error:', error.message);
       console.error('STDERR:', stderr);
       console.error('STDOUT:', stdout);
       return res.status(500).send('Compression failed');
     }
+
+    console.log("✅ Compression successful, sending file...");
 
     res.download(outputPath, 'compressed.pdf', () => {
       fs.unlinkSync(inputPath);
