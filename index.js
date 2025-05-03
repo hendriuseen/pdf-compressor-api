@@ -35,7 +35,8 @@ app.post('/', upload.single('file'), (req, res) => {
   }
 
   const inputPath = req.file.path;
-  const outputPath = `compressed/${req.file.filename}.pdf`;
+  //const outputPath = `compressed/${req.file.filename}.pdf`;
+  const outputPath = `compressed/${req.file.originalname}-compressed.pdf`;
   //const outputPath = inputPath.replace(/\.pdf$/, '-compressed.pdf');
 
   //const gsCommand = `gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/ebook -dNOPAUSE -dQUIET -dBATCH -sOutputFile=${outputPath} ${inputPath}`;
