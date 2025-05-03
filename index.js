@@ -35,6 +35,7 @@ app.post('/', upload.single('file'), (req, res) => {
   }
 
   const inputPath = req.file.path;
+  const originalName = req.file.originalname
   //const outputPath = `compressed/${req.file.filename}.pdf`;
   const outputPath = `compressed/${req.file.originalname}-compressed.pdf`;
   //const outputPath = inputPath.replace(/\.pdf$/, '-compressed.pdf');
@@ -63,7 +64,7 @@ app.post('/', upload.single('file'), (req, res) => {
       return res.status(500).send('Compression failed');
     }
 
-    res.download(outputPath, 'compressed.pdf', err => {
+    res.download(outputPath, originalName + '-compressed.pdf', err => {
       if (err) {
         console.error('Failed to send file:', err);
         res.status(500).send('Failed to send file');
