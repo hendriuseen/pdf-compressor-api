@@ -25,7 +25,7 @@ app.use((req, res, next) => {
 
 app.use(express.static('public'));
 
-app.post('/compress', upload.single('file'), (req, res) => {
+app.post('/', upload.single('file'), (req, res) => {
   console.log("📥 File received:", req.file?.originalname || "none");
 
   if (!req.file) {
@@ -34,25 +34,38 @@ app.post('/compress', upload.single('file'), (req, res) => {
   }
 
   const inputPath = req.file.path;
-  const outputPath = `compressed/${req.file.filename}.pdf`;
+  // const outputPath = `compressed/${req.file.filename}.pdf`;
+  const outputPath = inputPath.replace(/\.pdf$/, '-compressed.pdf');
 
-  const gsCommand = `gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/ebook -dNOPAUSE -dQUIET -dBATCH -sOutputFile=${outputPath} ${inputPath}`;
+  //const gsCommand = `gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/ebook -dNOPAUSE -dQUIET -dBATCH -sOutputFile=${outputPath} ${inputPath}`;
 
-  console.log('▶️ Running command:', gsCommand);
+  const gs = spawn('gs', [
+    '-sDEVICE=pdfwrite',
+    '-dCompatibilityLevel=1.4',
+    '-dPDFSETTINGS=/ebook',
+    '-dNOPAUSE',
+    '-dQUIET',
+    '-dBATCH',
+    `-sOutputFile=${outputPath}`,
+    inputPath
+  ]);
 
-  exec(gsCommand, (error, stdout, stderr) => {
-    if (error) {
-      console.error('❌ Compression error:', error.message);
-      console.error('STDERR:', stderr);
-      console.error('STDOUT:', stdout);
-      return res.status(500).send('Compression failed !!!');
+  gs.on('error', err => {
+    console.error('Ghostscript failed to start:', err);
+    res.status(500).send('Compression failed (gs not found or error starting)');
+  });
+
+  gs.on('close', code => {
+    if (code !== 0) {
+      console.error(`Ghostscript exited with code ${code}`);
+      return res.status(500).send('Compression failed');
     }
 
-    console.log("✅ Compression successful, sending file...");
-
-    res.download(outputPath, 'compressed.pdf', () => {
-      fs.unlinkSync(inputPath);
-      fs.unlinkSync(outputPath);
+    res.download(outputPath, 'compressed.pdf', err => {
+      if (err) {
+        console.error('Failed to send file:', err);
+        res.status(500).send('Failed to send file');
+      }
     });
   });
 });
