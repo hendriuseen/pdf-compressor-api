@@ -45,7 +45,7 @@ app.post('/compress', upload.single('file'), (req, res) => {
       console.error('❌ Compression error:', error.message);
       console.error('STDERR:', stderr);
       console.error('STDOUT:', stdout);
-      return res.status(500).send('Compression failed');
+      return res.status(500).send('Compression failed !!!');
     }
 
     console.log("✅ Compression successful, sending file...");
