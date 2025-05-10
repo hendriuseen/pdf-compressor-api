@@ -1,6 +1,6 @@
 FROM node:18
 
-RUN apt-get update && apt-get install -y ghostscript
+RUN apt-get update && apt-get install -y qpdf
 
 WORKDIR /app
 COPY . .
