@@ -1,4 +1,3 @@
-
 const express = require('express');
 const multer = require('multer');
 const fs = require('fs');
@@ -35,46 +34,29 @@ app.post('/', upload.single('file'), (req, res) => {
   }
 
   const inputPath = req.file.path;
-  const originalName = req.file.originalname
-  //const outputPath = `compressed/${req.file.filename}.pdf`;
+
   const outputPath = `compressed/${req.file.originalname}-compressed.pdf`;
-  //const outputPath = inputPath.replace(/\.pdf$/, '-compressed.pdf');
+  const mutoolCommand = `mutool clean -gggg -z "${inputPath}" "${outputPath}"`;
 
-  //const gsCommand = `gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/ebook -dNOPAUSE -dQUIET -dBATCH -sOutputFile=${outputPath} ${inputPath}`;
+  console.log("▶️ Running command:", mutoolCommand);
 
-  const gs = spawn('gs', [
-    '-sDEVICE=pdfwrite',
-    '-dCompatibilityLevel=1.4',
-    '-dPDFSETTINGS=/ebook',
-    '-dNOPAUSE',
-    '-dQUIET',
-    '-dBATCH',
-    '-dFastWebView=true',
-    '-dDetectDuplicateImages=true',
-    '-dRemoveAllMarks=true',
-    `-sOutputFile=${outputPath}`,
-    inputPath
-  ]);
-
-  gs.on('error', err => {
-    console.error('Ghostscript failed to start:', err);
-    res.status(500).send('Compression failed (gs not found or error starting)');
-  });
-
-  gs.on('close', code => {
-    if (code !== 0) {
-      console.error(`Ghostscript exited with code ${code}`);
-      return res.status(500).send('Compression failed');
+  exec(mutoolCommand, (error, stdout, stderr) => {
+    if (error) {
+      console.error("❌ Mutool compression error:", error.message);
+      console.error("STDERR:", stderr);
+      console.error("STDOUT:", stdout);
+      return res.status(500).send("Compression failed");
     }
 
-    res.download(outputPath, originalName + '-compressed.pdf', err => {
-      if (err) {
-        console.error('Failed to send file:', err);
-        res.status(500).send('Failed to send file');
-      }
+    console.log("✅ Compression successful, sending file...");
+
+    res.download(outputPath, 'compressed.pdf', () => {
+      fs.unlinkSync(inputPath);
+      fs.unlinkSync(outputPath);
     });
   });
 });
+
 
 app.get('/', (req, res) => res.send('PDF Compressor API is running'));
 
