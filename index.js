@@ -4,6 +4,7 @@ const multer = require('multer');
 const fs = require('fs');
 const { exec } = require('child_process');
 const path = require('path');
+const { spawn } = require('child_process');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -34,26 +35,43 @@ app.post('/', upload.single('file'), (req, res) => {
   }
 
   const inputPath = req.file.path;
+  const originalName = req.file.originalname
+  //const outputPath = `compressed/${req.file.filename}.pdf`;
   const outputPath = `compressed/${req.file.originalname}-compressed.pdf`;
+  //const outputPath = inputPath.replace(/\.pdf$/, '-compressed.pdf');
 
+  //const gsCommand = `gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/ebook -dNOPAUSE -dQUIET -dBATCH -sOutputFile=${outputPath} ${inputPath}`;
 
-  const qpdfCommand = `qpdf --linearize ${inputPath} ${outputPath}`;
+  const gs = spawn('gs', [
+    '-sDEVICE=pdfwrite',
+    '-dCompatibilityLevel=1.4',
+    '-dPDFSETTINGS=/ebook',
+    '-dNOPAUSE',
+    '-dQUIET',
+    '-dBATCH',
+    '-dFastWebView=true',
+    '-dDetectDuplicateImages=true',
+    '-dRemoveAllMarks=true',
+    `-sOutputFile=${outputPath}`,
+    inputPath
+  ]);
 
-  console.log("▶️ Running command:", qpdfCommand);
+  gs.on('error', err => {
+    console.error('Ghostscript failed to start:', err);
+    res.status(500).send('Compression failed (gs not found or error starting)');
+  });
 
-  exec(qpdfCommand, (error, stdout, stderr) => {
-    if (error) {
-      console.error("❌ QPDF compression error:", error.message);
-      console.error("STDERR:", stderr);
-      console.error("STDOUT:", stdout);
-      return res.status(500).send("Compression failed");
+  gs.on('close', code => {
+    if (code !== 0) {
+      console.error(`Ghostscript exited with code ${code}`);
+      return res.status(500).send('Compression failed');
     }
 
-    console.log("✅ Compression successful, sending file...");
-
-    res.download(outputPath, 'compressed.pdf', () => {
-      fs.unlinkSync(inputPath);
-      fs.unlinkSync(outputPath);
+    res.download(outputPath, originalName + '-compressed.pdf', err => {
+      if (err) {
+        console.error('Failed to send file:', err);
+        res.status(500).send('Failed to send file');
+      }
     });
   });
 });
