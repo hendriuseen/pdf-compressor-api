@@ -30,17 +30,16 @@ app.use(express.static('public'));
 app.post('/', upload.single('file'), (req, res) => {
   console.log("📥 File received:", req.file?.originalname || "none");
 
-  if (!req.file) {
-    console.error("❌ No file uploaded");
-    return res.status(400).send("No file uploaded");
+  if (!req.file || fs.statSync(req.file.path).size === 0) {
+    console.error("❌ Uploaded file is empty or missing.");
+    return res.status(400).send("Empty file.");
   }
-
   const jobId = uuidv4();
   const inputPath = req.file.path;
   const originalName = req.file.originalname
 
-  const outputPath = `compressed/${req.file.originalname}-compressed.pdf`;
-  //const outputPath = path.join('compressed/', `${jobId}.pdf`);
+  //const outputPath = `compressed/${req.file.originalname}-compressed.pdf`;
+  const outputPath = path.join('compressed/', `${jobId}.pdf`);
   jobs[jobId] = { status: 'processing', outputPath };
   //const gsCommand = `gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/ebook -dNOPAUSE -dQUIET -dBATCH -sOutputFile=${outputPath} ${inputPath}`;
 
@@ -71,11 +70,11 @@ app.get('/status/:jobId', (req, res) => {
 
 app.get('/download/:jobId', (req, res) => {
   const job = jobs[req.params.jobId];
-  if (!job || job.status !== 'done') return res.status(404).send("File not ready");
-  if (!fs.existsSync(job.outputPath) || fs.statSync(job.outputPath).size === 0) {
-    console.error("❌ Output file is missing or empty.");
+  if (!fs.existsSync(job.outputPath) || fs.statSync(job.outputPath).size < 1000) {
+    console.error("❌ Compressed file is missing or too small.");
     return res.status(500).send("Compression failed.");
   }
+  if (!job || job.status !== 'done') return res.status(404).send("File not ready");
   res.download(job.outputPath, 'compressed.pdf', () => {
     fs.unlinkSync(job.outputPath); // Cleanup after download
     delete jobs[req.params.jobId];
