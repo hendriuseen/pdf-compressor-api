@@ -1,14 +1,16 @@
+
 const express = require('express');
 const multer = require('multer');
 const fs = require('fs');
 const { exec } = require('child_process');
 const path = require('path');
-const { spawn } = require('child_process');
+const { v4: uuidv4 } = require('uuid');
 
 const app = express();
 const port = process.env.PORT || 3000;
 
 const upload = multer({ dest: 'uploads/' });
+const jobs = {};
 
 // Ensure necessary folders exist
 const ensureDir = dir => {
@@ -33,31 +35,45 @@ app.post('/', upload.single('file'), (req, res) => {
     return res.status(400).send("No file uploaded");
   }
 
+  const jobId = uuidv4();
   const inputPath = req.file.path;
+  const originalName = req.file.originalname
 
-  const outputPath = `compressed/${req.file.originalname}-compressed.pdf`;
-  const mutoolCommand = `mutool clean -gggg -z "${inputPath}" "${outputPath}"`;
+  //const outputPath = `compressed/${req.file.originalname}-compressed.pdf`;
+  const outputPath = path.join('compressed', `${jobId}.pdf`);
+  jobs[jobId] = { status: 'processing', outputPath };
+  //const gsCommand = `gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/ebook -dNOPAUSE -dQUIET -dBATCH -sOutputFile=${outputPath} ${inputPath}`;
 
-  console.log("▶️ Running command:", mutoolCommand);
+  const gsCommand = `gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/screen -dNOPAUSE -dQUIET -dBATCH -dFastWebView=true -dNumRenderingThreads=4 -sOutputFile=${outputPath} ${inputPath}`;
 
-  exec(mutoolCommand, (error, stdout, stderr) => {
+  console.log("▶️ Compressing:", req.file.originalname);
+  exec(gsCommand, (error) => {
     if (error) {
-      console.error("❌ Mutool compression error:", error.message);
-      console.error("STDERR:", stderr);
-      console.error("STDOUT:", stdout);
-      return res.status(500).send("Compression failed");
+      console.error("❌ Compression failed:", error.message);
+      jobs[jobId].status = 'failed';
+      return;
     }
-
-    console.log("✅ Compression successful, sending file...");
-
-    res.download(outputPath, 'compressed.pdf', () => {
-      fs.unlinkSync(inputPath);
-      fs.unlinkSync(outputPath);
-    });
+    jobs[jobId].status = 'done';
+    fs.unlinkSync(inputPath); // Clean up original file
+    console.log("✅ Compression complete:", jobId);
   });
+
+  res.json({ jobId });
 });
 
+app.get('/status/:jobId', (req, res) => {
+  const job = jobs[req.params.jobId];
+  if (!job) return res.status(404).send("Job not found");
+  res.json({ status: job.status });
+});
 
-app.get('/', (req, res) => res.send('PDF Compressor API is running'));
+app.get('/download/:jobId', (req, res) => {
+  const job = jobs[req.params.jobId];
+  if (!job || job.status !== 'done') return res.status(404).send("File not ready");
+  res.download(job.outputPath, 'compressed.pdf', () => {
+    fs.unlinkSync(job.outputPath); // Cleanup after download
+    delete jobs[req.params.jobId];
+  });
+});
 
 app.listen(port, () => console.log(`Server listening on port ${port}`));

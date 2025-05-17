@@ -1,6 +1,6 @@
 FROM node:18
 
-RUN apt-get update && apt-get install -y mupdf-tools
+RUN apt-get update && apt-get install -y ghostscript
 
 WORKDIR /app
 COPY . .
