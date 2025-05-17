@@ -40,16 +40,18 @@ app.post('/', upload.single('file'), (req, res) => {
   const originalName = req.file.originalname
 
   //const outputPath = `compressed/${req.file.originalname}-compressed.pdf`;
-  const outputPath = path.join('compressed', `${jobId}.pdf`);
+  const outputPath = path.join('compressed/', `${jobId}.pdf`);
   jobs[jobId] = { status: 'processing', outputPath };
   //const gsCommand = `gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/ebook -dNOPAUSE -dQUIET -dBATCH -sOutputFile=${outputPath} ${inputPath}`;
 
   const gsCommand = `gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/screen -dNOPAUSE -dQUIET -dBATCH -dFastWebView=true -dNumRenderingThreads=4 -sOutputFile=${outputPath} ${inputPath}`;
 
   console.log("▶️ Compressing:", req.file.originalname);
-  exec(gsCommand, (error) => {
+
+  exec(gsCommand, (error, stdout, stderr) => {
     if (error) {
       console.error("❌ Compression failed:", error.message);
+      console.error("stderr:", stderr);
       jobs[jobId].status = 'failed';
       return;
     }
@@ -70,6 +72,10 @@ app.get('/status/:jobId', (req, res) => {
 app.get('/download/:jobId', (req, res) => {
   const job = jobs[req.params.jobId];
   if (!job || job.status !== 'done') return res.status(404).send("File not ready");
+  if (!fs.existsSync(job.outputPath) || fs.statSync(job.outputPath).size === 0) {
+    console.error("❌ Output file is missing or empty.");
+    return res.status(500).send("Compression failed.");
+  }
   res.download(job.outputPath, 'compressed.pdf', () => {
     fs.unlinkSync(job.outputPath); // Cleanup after download
     delete jobs[req.params.jobId];
