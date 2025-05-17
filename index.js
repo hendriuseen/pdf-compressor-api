@@ -39,8 +39,8 @@ app.post('/', upload.single('file'), (req, res) => {
   const inputPath = req.file.path;
   const originalName = req.file.originalname
 
-  //const outputPath = `compressed/${req.file.originalname}-compressed.pdf`;
-  const outputPath = path.join('compressed/', `${jobId}.pdf`);
+  const outputPath = `compressed/${req.file.originalname}-compressed.pdf`;
+  //const outputPath = path.join('compressed/', `${jobId}.pdf`);
   jobs[jobId] = { status: 'processing', outputPath };
   //const gsCommand = `gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/ebook -dNOPAUSE -dQUIET -dBATCH -sOutputFile=${outputPath} ${inputPath}`;
 
