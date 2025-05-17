@@ -25,7 +25,7 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.static('public'));
+//app.use(express.static('public'));
 
 app.post('/', upload.single('file'), (req, res) => {
   console.log("📥 File received:", req.file?.originalname || "none");
@@ -43,7 +43,7 @@ app.post('/', upload.single('file'), (req, res) => {
   jobs[jobId] = { status: 'processing', outputPath };
   //const gsCommand = `gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/ebook -dNOPAUSE -dQUIET -dBATCH -sOutputFile=${outputPath} ${inputPath}`;
 
-  const gsCommand = `gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/screen -dNOPAUSE -dQUIET -dBATCH -dFastWebView=true -dNumRenderingThreads=4 -sOutputFile=${outputPath} ${inputPath}`;
+  const gsCommand = `gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/ebook -dNOPAUSE -dQUIET -dBATCH -dFastWebView=true -sOutputFile=${outputPath} ${inputPath}`;
 
   console.log("▶️ Compressing:", req.file.originalname);
 
