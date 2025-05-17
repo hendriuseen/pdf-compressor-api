@@ -8,7 +8,7 @@ const { v4: uuidv4 } = require('uuid');
 
 const app = express();
 const port = process.env.PORT || 3000;
-
+const { spawn } = require('child_process');
 const upload = multer({ dest: 'uploads/' });
 const jobs = {};
 
@@ -38,28 +38,41 @@ app.post('/', upload.single('file'), (req, res) => {
   //const inputPath = req.file.path;
   const originalName = req.file.originalname
 
-  const inputPath = path.resolve(req.file.path);
-  const outputPath = path.resolve('compressed', `${jobId}.pdf`);
+  const inputPath = path.resolve(req.file.path); // in /uploads/
+  const outputPath = path.resolve('compressed', `${jobId}.pdf`); // in /compressed/
 
   //const outputPath = `compressed/${req.file.originalname}-compressed.pdf`;
   //const outputPath = path.join('compressed/', `${jobId}.pdf`);
   jobs[jobId] = { status: 'processing', outputPath };
   //const gsCommand = `gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/ebook -dNOPAUSE -dQUIET -dBATCH -sOutputFile=${outputPath} ${inputPath}`;
 
-  const gsCommand = `gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/screen -dNOPAUSE -dQUIET -dBATCH -dFastWebView=true -dNumRenderingThreads=4 -sOutputFile="${outputPath}" "${inputPath}"`;
+  const args = [
+    '-sDEVICE=pdfwrite',
+    '-dCompatibilityLevel=1.4',
+    '-dPDFSETTINGS=/screen',
+    '-dNOPAUSE',
+    '-dQUIET',
+    '-dBATCH',
+    '-dFastWebView=true',
+    '-dNumRenderingThreads=4',
+    `-sOutputFile=${outputPath}`,
+    inputPath
+  ];
 
+  const gs = spawn('gs', args);
+  
   console.log("▶️ Compressing:", req.file.originalname);
 
-  exec(gsCommand, (error, stdout, stderr) => {
-    if (error) {
-      console.error("❌ Compression failed:", error.message);
-      console.error("stderr:", stderr);
+
+  gs.on('close', (code) => {
+    if (code !== 0) {
+      console.error(`❌ Ghostscript failed with code ${code}`);
       jobs[jobId].status = 'failed';
-      return;
+    } else {
+      console.log("✅ Compression complete:", outputPath);
+      jobs[jobId].status = 'done';
+      fs.unlinkSync(inputPath);
     }
-    jobs[jobId].status = 'done';
-    fs.unlinkSync(inputPath); // Clean up original file
-    console.log("✅ Compression complete:", jobId);
   });
   res.json({ jobId });
 });
