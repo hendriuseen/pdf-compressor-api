@@ -35,15 +35,18 @@ app.post('/', upload.single('file'), (req, res) => {
     return res.status(400).send("Empty file.");
   }
   const jobId = uuidv4();
-  const inputPath = req.file.path;
+  //const inputPath = req.file.path;
   const originalName = req.file.originalname
 
+  const inputPath = path.resolve(req.file.path);
+  const outputPath = path.resolve('compressed', `${jobId}.pdf`);
+
   //const outputPath = `compressed/${req.file.originalname}-compressed.pdf`;
-  const outputPath = path.join('compressed/', `${jobId}.pdf`);
+  //const outputPath = path.join('compressed/', `${jobId}.pdf`);
   jobs[jobId] = { status: 'processing', outputPath };
   //const gsCommand = `gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/ebook -dNOPAUSE -dQUIET -dBATCH -sOutputFile=${outputPath} ${inputPath}`;
 
-  const gsCommand = `gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/ebook -dNOPAUSE -dQUIET -dBATCH -dFastWebView=true -sOutputFile=${outputPath} ${inputPath}`;
+  const gsCommand = `gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/screen -dNOPAUSE -dQUIET -dBATCH -dFastWebView=true -dNumRenderingThreads=4 -sOutputFile="${outputPath}" "${inputPath}"`;
 
   console.log("▶️ Compressing:", req.file.originalname);
 
