@@ -58,17 +58,18 @@ app.post('/', upload.single('file'), (req, res) => {
     fs.unlinkSync(inputPath); // Clean up original file
     console.log("✅ Compression complete:", jobId);
   });
-
   res.json({ jobId });
 });
 
-app.get('/status/:jobId', (req, res) => {
+//app.get('/status/:jobId', (req, res) => {
+app.get('/:jobId', (req, res) => {
   const job = jobs[req.params.jobId];
   if (!job) return res.status(404).send("Job not found");
   res.json({ status: job.status });
 });
 
-app.get('/download/:jobId', (req, res) => {
+//app.get('/download/:jobId', (req, res) => {
+app.get('/:jobId', (req, res) => {
   const job = jobs[req.params.jobId];
   if (!fs.existsSync(job.outputPath) || fs.statSync(job.outputPath).size < 1000) {
     console.error("❌ Compressed file is missing or too small.");
